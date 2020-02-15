@@ -36,7 +36,8 @@ class DatabaseHandler:
 
         sql = f"SELECT ct.id, ct.name, gd.id, gd.name FROM goods as gd " \
               f"LEFT JOIN categories as ct ON gd.category_id = ct.id " \
-              f"WHERE gd.name like '%{request}%' ORDER BY ct.name, gd.name " \
+              f"WHERE gd.name like '%{request}%' " \
+              f"ORDER BY ct.name, gd.name " \
               f"LIMIT {limit or -1} OFFSET {offset or 0}"
 
         return self._connect.cursor().execute(sql)
