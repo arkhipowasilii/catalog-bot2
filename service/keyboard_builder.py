@@ -1,5 +1,5 @@
 from collections import Callable
-from typing import Optional, Tuple, Any
+from typing import Optional, Tuple, Any, Iterable
 
 from telegram import InlineKeyboardMarkup as Markup, InlineKeyboardButton as Button
 
@@ -28,7 +28,7 @@ class KeyboardBuilder:
         self._buttons = []
         self._buttons.append([])
 
-    def button(self, text: str, callback: Callable, data: Any = None) -> 'KeyboardBuilder':
+    def button(self, text: str, callback: Callable, data: Iterable[Any] = None) -> 'KeyboardBuilder':
         self._buttons[-1].append(Button(text=text, callback_data=self._serializer.serialize(callback, data or [])))
         return self
 
@@ -36,12 +36,14 @@ class KeyboardBuilder:
         self._buttons.append([])
         return self
 
-    def pager(self, callback: Callable, in_page: int, current_offset: int):
-        pass
-        return self
+    def pager(self, callback: Callable, in_page: int, current_offset: int, *args) -> 'KeyboardBuilder':
+        self.line()
+        if current_offset > 0:
+            self.button('<-', callback, (current_offset - in_page, *args))
+        return self.button('->', callback, (current_offset + in_page, *args)).line()
 
-    def back(self, callback: Callable, *args):
-        pass
+    def back(self, callback: Callable, *args) -> 'KeyboardBuilder':
+        return self.button('<-', callback, args)
 
     def get(self) -> Markup:
         return Markup(self._buttons)
