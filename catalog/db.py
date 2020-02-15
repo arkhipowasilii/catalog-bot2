@@ -11,6 +11,7 @@ class DatabaseHandler:
 
     def get_categories(self, offset: Optional[int] = None, limit: Optional[int] = None) -> Iterable[Tuple[int, str]]:
         return self._connect.cursor().execute(f"SELECT id, name FROM categories "
+                                              f"ORDER BY name "
                                               f"LIMIT {limit or -1} OFFSET {offset or 0}")
 
     def get_products(self,
@@ -25,6 +26,7 @@ class DatabaseHandler:
 
         return self._connect.cursor().execute(f"SELECT id, name FROM goods "
                                               f"{category} "
+                                              f"ORDER BY name "
                                               f"LIMIT {limit or -1} OFFSET {offset or 0}")
 
     def find_products(self,
@@ -34,7 +36,7 @@ class DatabaseHandler:
 
         sql = f"SELECT ct.id, ct.name, gd.id, gd.name FROM goods as gd " \
               f"LEFT JOIN categories as ct ON gd.category_id = ct.id " \
-              f"WHERE UPPER(gd.name) like '%{request.upper()}%' " \
+              f"WHERE gd.name like '%{request}%' ORDER BY ct.name, gd.name " \
               f"LIMIT {limit or -1} OFFSET {offset or 0}"
 
         return self._connect.cursor().execute(sql)
