@@ -48,5 +48,5 @@ class KeyboardBuilder:
     def get(self) -> Markup:
         if len(self._buttons[-1]) == 0:
             self._buttons = self._buttons[:-1]
-
+        print(self._buttons)
         return Markup(self._buttons)
