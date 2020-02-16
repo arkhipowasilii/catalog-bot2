@@ -33,7 +33,10 @@ class Bot:
 
     def _query_callback(self, update: Update, context):
         callback, args = self._serializer.deserialize(update.callback_query.data)
-        callback(update, context, *args)
+        if callback:
+            callback(update, context, *args)
+        else:
+            raise NotImplementedError(f"{update.callback_query.data}")
 
     def _message_callback(self, update: Update, context):
         pass
