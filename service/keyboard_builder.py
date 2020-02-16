@@ -29,7 +29,8 @@ class KeyboardBuilder:
         self._buttons.append([])
 
     def button(self, text: str, callback: Callable, data: Iterable[Any] = None) -> 'KeyboardBuilder':
-        self._buttons[-1].append(Button(text=text, callback_data=self._serializer.serialize(callback, data or [])))
+        data = self._serializer.serialize(callback, data or [])
+        self._buttons[-1].append(Button(text=text, callback_data=data))
         return self
 
     def line(self) -> 'KeyboardBuilder':
@@ -48,5 +49,4 @@ class KeyboardBuilder:
     def get(self) -> Markup:
         if len(self._buttons[-1]) == 0:
             self._buttons = self._buttons[:-1]
-        print(self._buttons)
         return Markup(self._buttons)

@@ -54,7 +54,7 @@ class Bot:
             kb.button(product.name, self._open_product, (product.id, offset, back_offset))
 
         kb.pager(self._open_category, in_page, offset).back(self._open_categories, back_offset)
-        context.bot.edit_message_text(chat_id=update.effective_chat, message_id=update.effective_message,
+        context.bot.edit_message_text(chat_id=update.effective_chat.id, message_id=update.effective_message.message_id,
                                       text="Catalog:",
                                       reply_markup=kb.get())
 
@@ -66,7 +66,7 @@ class Bot:
             kb.button(category.name, self._open_category, (0, category.id, offset))
 
         kb.pager(self._open_categories, in_page, offset)
-        context.bot.edit_message_text(chat_id=update.effective_chat, message_id=update.effective_message,
+        context.bot.edit_message_text(chat_id=update.effective_chat.id, message_id=update.effective_message.message_id,
                                       text="Catalog:",
                                       reply_markup=kb.get())
 
