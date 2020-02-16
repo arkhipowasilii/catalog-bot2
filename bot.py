@@ -32,7 +32,7 @@ class Bot:
                                  reply_markup=kb.get())
 
     def _query_callback(self, update: Update, context):
-        callback, args = self._serializer.deserialize(update.callback_query)
+        callback, args = self._serializer.deserialize(update.callback_query.data)
         callback(update, context, *args)
 
     def _message_callback(self, update: Update, context):
