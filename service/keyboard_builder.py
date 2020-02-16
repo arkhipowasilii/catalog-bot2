@@ -11,7 +11,7 @@ class Serializer:
         assert getattr(self._handler, str(cb)) == cb
         return f"{cb}|{','.join(data)}"
 
-    def deserialize(self, raw: str) -> Optional[Callable, Tuple[str]]:
+    def deserialize(self, raw: str) -> Optional[Tuple[Callable, Tuple[str]]]:
         cb, data = raw.split('|')
 
         cb = getattr(self._handler, cb)
