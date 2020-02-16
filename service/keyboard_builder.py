@@ -46,4 +46,5 @@ class KeyboardBuilder:
         return self.button('<-', callback, args)
 
     def get(self) -> Markup:
+        print(self._buttons)
         return Markup(self._buttons)
