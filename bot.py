@@ -26,7 +26,7 @@ class Bot:
         self._dispatcher.add_handler(MessageHandler(Filters.text, self._message_callback))
 
     def _start_callback(self, update: Update, context):
-        kb = KB(self._serializer).button("Open", self._open_categories, 0)
+        kb = KB(self._serializer).button("Open", self._open_categories, (0,))
         context.bot.send_message(chat_id=update.effective_chat.id,
                                  text="I'm catalog! Insert your request or open categories!",
                                  reply_markup=kb.get())
