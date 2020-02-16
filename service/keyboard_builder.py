@@ -8,8 +8,8 @@ class Serializer:
         self._handler = handler
 
     def serialize(self, cb: Callable, data: Tuple[Any]) -> str:
-        assert getattr(self._handler, str(cb)) == cb
-        return f"{cb}|{','.join(data)}"
+        assert getattr(self._handler, cb.__name__) == cb
+        return f"{cb.__name__}|{','.join(data)}"
 
     def deserialize(self, raw: str) -> Optional[Tuple[Callable, Tuple[str]]]:
         cb, data = raw.split('|')
