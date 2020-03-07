@@ -6,7 +6,7 @@ from catalog import Catalog
 
 
 def main():
-    token = "564367094:AAHofwd0C8yWU68DxcWlGXyT7t1A_o7bDyA"
+    token = "701721190:AAEtlb05Fbi7VO9jRaOd6TARNv-kYhQj-ys"
     db = Path("./catalog.db")
     logging.basicConfig(level=logging.DEBUG)
     Bot(token, Catalog(db)).start()
