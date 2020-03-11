@@ -1,11 +1,11 @@
 from telegram import Update
 from typing import List, Tuple, Dict, Iterable, Callable
-from catalog import Catalog
+from catalog import Catalog, Product
 from service.keyboard_builder import KeyboardBuilder as KB, Serializer
 from telegram.ext import Updater, Dispatcher, CommandHandler, CallbackQueryHandler, MessageHandler, Filters
 from PIL import Image
 
-in_page = 2
+IN_PAGE = 1
 
 class Bot:
     def __init__(self, token: str, catalog):
@@ -39,18 +39,23 @@ class Bot:
             if products_ids is None:
                 callback(update, context, *args)
             else:
-                callback(update, context, *args, products_ids)
+                callback(update, context, products_ids, *args)
         else:
             raise NotImplementedError(f"{update.callback_query.data}")
 
     #ToDO
     def _message_callback(self, update: Update, context):
         result = self._catalog.find(update.message.text)
-        kb = KB(self._serializer)
-        if len(result) == 1:
-            pass
+        all_products = []
         for products in result.values():
-            self.open_particular_products(update, context, products, 0, 0)
+            all_products += products
+
+        kb = self._get_products_keyboard(self.open_particular_products,
+                                         all_products,
+                                         0, 0, len(all_products), False)
+        context.bot.send_message(chat_id=update.effective_chat.id,
+                                 text="Products:",
+                                 reply_markup=kb.get())
 
     def open_particular_products(self, update: Update, context,
                                  product_ids: Iterable[int],
@@ -58,27 +63,30 @@ class Bot:
                                  back_offset: int):
         offset, back_offset = int(offset), int(back_offset)
 
-        kb = self._abs_open_products(self.open_particular_products,
-                                     self._catalog.find_products(product_ids),
-                                     offset, back_offset, len(product_ids))
+        kb = self._get_products_keyboard(self.open_particular_products,
+                                         self._catalog.find_products(product_ids, offset, IN_PAGE),
+                                         offset, back_offset, len(product_ids))
 
         self.edit_message(update, context, "Products:", kb)
 
     #ToDO
     def _open_product(self, update: Update, context, product_id: int, back_offset: int):
         product_id, back_offset = int(product_id), int(back_offset)
-        png_path = self._catalog.get_png_path(product_id)
-        if png_path:
-            fp = Image.open(png_path)
-            context.bot.send_photo(photo=fp)
+        image = self._catalog.get_png_path(product_id)
+        if isinstance(image, Path):
+            fp = Image.open(image)
+            context.bot.send_photo(chat_id=update.effective_chat.id, photo=fp)
             fp.close()
-        raise NotImplementedError
+        elif isinstance(image, int):
+            context.bot.send_photo(chat_id=update.effective_chat.id,
+                                     caption="Products:",
+                                     photo=image)
 
     def _open_category(self, update: Update, context, offset: int, category_id: int, back_offset: int):
         offset, category_id, back_offset = int(offset), int(category_id), int(back_offset)
 
-        kb = self._abs_open_products(self._catalog.get(category_id, offset, in_page),
-                                     offset, back_offset, len(self._catalog.get(category_id)), category_id)
+        kb = self._get_products_keyboard(self._open_category, self._catalog.get(category_id, offset, IN_PAGE),
+                                         offset, back_offset, len(self._catalog.get(category_id)), category_id)
         self.edit_message(update, context, "Catalog:", kb)
 
     def _open_categories(self, update: Update, context, offset: int):
@@ -86,7 +94,7 @@ class Bot:
             offset = 0
         else:
             offset = int(offset)
-        kb = self._abs_open_categories(self._open_categories, self._catalog.get_categories(offset=offset, limit=in_page),
+        kb = self._abs_open_categories(self._open_category, self._catalog.get_categories(offset=offset, limit=IN_PAGE),
                                        offset, max_offset=len(self._catalog.get_categories()))
         self.edit_message(update, context, "Catalog:", kb)
 
@@ -95,22 +103,31 @@ class Bot:
                                       text=text,
                                       reply_markup=kb.get())
 
-    def _abs_open_categories(self, categories: Iterable, offset: int, max_offset: int) -> KB:
+    def _abs_open_categories(self, func: Callable, categories: Iterable, offset: int, max_offset: int) -> KB:
         kb = KB(self._serializer)
         for category in categories:
-            kb.button(category.name, self._open_category, (0, category.id, offset))
+            kb.button(category.name, func, (0, category.id, offset))
 
-        kb.pager(self._open_categories, in_page, offset, max_offset)
+        kb.pager(self._open_categories, IN_PAGE, offset, max_offset)
         return kb
 
-    def _abs_open_products(self, func: Callable, products: Iterable, offset: int, back_offset: int, max_offset: int, *args):
+    def _get_products_keyboard(self, func: Callable,
+                               products: Iterable[Product],
+                               offset: int,
+                               back_offset: int,
+                               max_offset: int,
+                               is_need_back: bool = None,
+                               *args):
+        is_need_back = True if is_need_back is None else False
         kb = KB(self._serializer)
 
-        for product in products:
+        for index, product in enumerate(products):
+            if index >= IN_PAGE:
+                break
             kb.button(product.name, self._open_product, (product.id, offset, back_offset))
 
-        pager = kb.pager(func, in_page, offset, max_offset, back_offset, *args)
-        if pager is not None:
+        pager = kb.pager(func, IN_PAGE, offset, max_offset, back_offset, *args)
+        if pager is not None and is_need_back:
             pager.back(self._open_categories, back_offset)
 
         return kb

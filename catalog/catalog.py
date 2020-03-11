@@ -49,7 +49,11 @@ class Catalog:
         return result
 
     def find_products(self, products_ids: Iterable[int], offset: Optional[int] = None, limit: Optional[int] = None) -> Iterable['Product']:
-        return [Product(id, name) for id, name in self._db.get_products_names(products_ids, offset=offset, limit=limit)]
+        raw = self._db.get_products_names(products_ids)
+        products = []
+        for index in range(offset + 1, offset + limit + 1):
+            products.append(raw[index])
+        return products
 
     def get_url(self, product: Product) -> Optional[str]:
         return self._db.get_product_url(product.id)

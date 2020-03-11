@@ -75,15 +75,13 @@ class DatabaseHandler:
             self._connect.cursor().execute(f"UPDATE goods SET png_filename = 'spam.png' WHERE id = {id[0]}")
             self._connect.commit()
 
-    def get_products_names(self, products_ids: Iterable[int], offset: Optional[int] = None, limit: Optional[int] = None):
-        result = []
-        for index in range(offset, offset + limit):
-            result.append(self._connect.cursor().execute(f"SELECT id, name FROM goods WHERE id = {id} "))
+    def get_products_names(self, products_ids: Iterable[int]):
+        return self._connect.cursor().execute(f"SELECT id, name FROM goods WHERE id in {products_ids}").fetchall()
 
     def get_png_path(self, id: int) -> 'Path':
         result = {self._connect.cursor().execute(f'SELECT png_filename FROM goods WHERE id = {id}')}
         result = f"{result[0]}"
-        return Path(r'C:\Users\Intel Core i7\PycharmProjects\catalog-bot\resources\png') / result
+        return Path.cwd() / 'resources' / 'png' / result
 
 if __name__ == '__main__':
     db = DatabaseHandler(Path(r'C:\Users\Intel Core i7\PycharmProjects\catalog-bot\catalog.db'))
