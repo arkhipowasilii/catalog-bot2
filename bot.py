@@ -4,6 +4,7 @@ from catalog import Catalog, Product
 from service.keyboard_builder import KeyboardBuilder as KB, Serializer
 from telegram.ext import Updater, Dispatcher, CommandHandler, CallbackQueryHandler, MessageHandler, Filters
 from PIL import Image
+from pathlib import Path
 
 IN_PAGE = 1
 
@@ -27,24 +28,19 @@ class Bot:
         self._dispatcher.add_handler(MessageHandler(Filters.text, self._message_callback))
 
     def _start_callback(self, update: Update, context, *args):
-        kb = KB(self._serializer).button("Open", self._open_categories)
-
-        context.bot.send_message(chat_id=update.effective_chat.id,
-                                 text="I'm catalog! Insert your request or open categories!",
-                                 reply_markup=kb.get())
+        kb = KB(self._serializer).button("Open", self.open_categories)
+        self.send_message(update, context, "I'm catalog! Insert your request or open categories!", kb)
 
     def _query_callback(self, update: Update, context):
-        callback, args, products_ids = self._serializer.deserialize(update.callback_query.data)
+        callback, args = self._serializer.deserialize(update.callback_query.data)
         if callback:
-            if products_ids is None:
-                callback(update, context, *args)
-            else:
-                callback(update, context, products_ids, *args)
+            callback(update, context, *args)
         else:
             raise NotImplementedError(f"{update.callback_query.data}")
 
     #ToDO
     def _message_callback(self, update: Update, context):
+        request = update.message.text
         result = self._catalog.find(update.message.text)
         all_products = []
         for products in result.values():
@@ -52,44 +48,50 @@ class Bot:
 
         kb = self._get_products_keyboard(self.open_particular_products,
                                          all_products,
-                                         0, 0, len(all_products), False)
-        context.bot.send_message(chat_id=update.effective_chat.id,
-                                 text="Products:",
-                                 reply_markup=kb.get())
+                                         0, 0, len(all_products), False, request)
+        self.send_message(update, context, "Products", kb)
 
     def open_particular_products(self, update: Update, context,
-                                 product_ids: Iterable[int],
-                                 offset: int,
-                                 back_offset: int):
-        offset, back_offset = int(offset), int(back_offset)
+                                 offset: int, request: str):
+        offset = int(offset)
+        result = self._catalog.find(request)
+
+        all_products = []
+        for products in result.values():
+            all_products += products
 
         kb = self._get_products_keyboard(self.open_particular_products,
-                                         self._catalog.find_products(product_ids, offset, IN_PAGE),
-                                         offset, back_offset, len(product_ids))
+                                         all_products,
+                                         offset, 0, len(all_products), False, request)
 
         self.edit_message(update, context, "Products:", kb)
 
     #ToDO
     def _open_product(self, update: Update, context, product_id: int, back_offset: int):
         product_id, back_offset = int(product_id), int(back_offset)
-        image = self._catalog.get_png_path(product_id)
-        if isinstance(image, Path):
-            fp = Image.open(image)
-            context.bot.send_photo(chat_id=update.effective_chat.id, photo=fp)
+        image_path = self._catalog.get_png_path(product_id)
+        desciption = self._catalog.get_description(product_id)
+
+        if isinstance(image_path, Path):
+            fp = image_path.open('rb')
+            context.bot.send_photo(chat_id=update.effective_chat.id, photo=fp, caption=desciption)
             fp.close()
-        elif isinstance(image, int):
+
+        elif isinstance(image_path, int):
             context.bot.send_photo(chat_id=update.effective_chat.id,
                                      caption="Products:",
-                                     photo=image)
+                                     photo=image_path)
 
     def _open_category(self, update: Update, context, offset: int, category_id: int, back_offset: int):
         offset, category_id, back_offset = int(offset), int(category_id), int(back_offset)
 
         kb = self._get_products_keyboard(self._open_category, self._catalog.get(category_id, offset, IN_PAGE),
-                                         offset, back_offset, len(self._catalog.get(category_id)), category_id)
+                                         offset, back_offset,
+                                         len(self._catalog.get(category_id)), True,
+                                         category_id, back_offset)
         self.edit_message(update, context, "Catalog:", kb)
 
-    def _open_categories(self, update: Update, context, offset: int):
+    def open_categories(self, update: Update, context, offset: int):
         if offset is '':
             offset = 0
         else:
@@ -103,12 +105,17 @@ class Bot:
                                       text=text,
                                       reply_markup=kb.get())
 
+    def send_message(self, update: Update, context, text: str, kb: KB = None):
+        context.bot.send_message(chat_id=update.effective_chat.id,
+                                 text=text,
+                                 reply_markup=kb.get())
+
     def _abs_open_categories(self, func: Callable, categories: Iterable, offset: int, max_offset: int) -> KB:
         kb = KB(self._serializer)
         for category in categories:
             kb.button(category.name, func, (0, category.id, offset))
 
-        kb.pager(self._open_categories, IN_PAGE, offset, max_offset)
+        kb.pager(self.open_categories, IN_PAGE, offset, max_offset)
         return kb
 
     def _get_products_keyboard(self, func: Callable,
@@ -124,10 +131,14 @@ class Bot:
         for index, product in enumerate(products):
             if index >= IN_PAGE:
                 break
-            kb.button(product.name, self._open_product, (product.id, offset, back_offset))
+            kb.button(product.name, self._open_product, (product.id, back_offset))
 
-        pager = kb.pager(func, IN_PAGE, offset, max_offset, back_offset, *args)
+        if is_need_back:
+            pager = kb.pager(func, IN_PAGE, offset, max_offset, back_offset, *args)
+        else:
+            pager = kb.pager(func, IN_PAGE, offset, max_offset, *args)
+
         if pager is not None and is_need_back:
-            pager.back(self._open_categories, back_offset)
+            pager.back(self.open_categories, back_offset)
 
         return kb

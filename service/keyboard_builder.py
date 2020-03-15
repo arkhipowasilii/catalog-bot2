@@ -3,29 +3,23 @@ from typing import Optional, Tuple, Any, Iterable
 
 from telegram import InlineKeyboardMarkup as Markup, InlineKeyboardButton as Button
 
+
 class Serializer:
     def __init__(self, handler):
         self._handler = handler
 
-    def serialize(self, cb: Callable, data: Tuple[Any], products_ids: Iterable[int] = None) -> str:
+    def serialize(self, cb: Callable, data: Tuple[Any]) -> str:
         assert getattr(self._handler, cb.__name__) == cb
-        products_ids_string = ''
-        if products_ids is not None:
-            products_ids_string = ','.join(map(str, products_ids))
-        return f"{cb.__name__}|{','.join(map(str, data))}|{products_ids_string}"
+        return f"{cb.__name__}|{','.join(map(str, data))}"
 
     def deserialize(self, raw: str) -> Optional[Tuple[Callable, Tuple[str], Tuple[int]]]:
-        cb, data, products_ids = raw.split('|')
+        cb, data = raw.split('|')
 
         cb = getattr(self._handler, cb)
         data = data.split(',')
 
         if cb:
-            if products_ids == '':
-                return cb, data, None
-            else:
-                products_ids = list(map(int, products_ids.split(',')))
-                return cb, data, products_ids
+            return cb, data
         else:
             return None
 

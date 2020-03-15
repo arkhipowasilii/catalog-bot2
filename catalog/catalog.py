@@ -62,3 +62,6 @@ class Catalog:
         path = self._db.get_png_path(product_id)
         assert path.exists()
         return path
+
+    def get_description(self, id: int) -> str:
+        return self._db.get_description(id)
