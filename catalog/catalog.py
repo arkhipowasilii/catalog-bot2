@@ -39,14 +39,15 @@ class Catalog:
             self._db.get_products(category=category, offset=offset, limit=limit)]
 
     def find(self, request: str, offset: Optional[int] = None, limit: Optional[int] = None):
-        raw = ((Category(cid, cname), Product(pid, pname)) for cid, cname, pid, pname in self._db.find_products(request, offset, limit))
+        count, raw = self._db.find_products(request, offset, limit)
+        raw = ((Category(cid, cname), Product(pid, pname)) for cid, cname, pid, pname in raw)
 
         result = {}
         for category, product in raw:
             result[category] = result.get(category) or []
             result[category].append(product)
 
-        return result
+        return count, result
 
     def find_products(self, products_ids: Iterable[int], offset: Optional[int] = None, limit: Optional[int] = None) -> Iterable['Product']:
         raw = self._db.get_products_names(products_ids)
@@ -59,9 +60,14 @@ class Catalog:
         return self._db.get_product_url(product.id)
 
     def get_png_path(self, product_id: int) -> Optional[Path]:
-        path = self._db.get_png_path(product_id)
+        path, photo_id = self._db.get_png_path(product_id)
+        if photo_id != '-1':
+            return photo_id
         assert path.exists()
         return path
+
+    def update_photo_id(self, photo_id: int, id: int):
+        self._db.update_column("photo_id", photo_id, id)
 
     def get_description(self, id: int) -> str:
         return self._db.get_description(id)

@@ -39,8 +39,12 @@ class DatabaseHandler:
               f"ORDER BY ct.name, gd.name " \
               f"LIMIT {limit or -1} OFFSET {offset or 0}"
 
+        sql2 = f"SELECT count(*) FROM goods " \
+               f"WHERE upper_name like '%{request.upper()}%' "
+
         result = self._connect.cursor().execute(sql)
-        return result
+        count = self._connect.cursor().execute(sql2).fetchone()
+        return count[0], result
 
     def get_product_url(self, product: Union[str, int]) -> Optional[str]:
         sql = "SELECT url from goods "
@@ -60,32 +64,39 @@ class DatabaseHandler:
         else:
             return None
 
-    def update_name(self):
+    def update_upper_name(self):
         for id, name in self._connect.cursor().execute("SELECT id, name FROM goods").fetchall():
             self._connect.cursor().execute(f"UPDATE goods SET upper_name = '{name.upper()}' WHERE id = {id}")
             self._connect.commit()
 
-    def alter_table(self):
-        sql = "ALTER TABLE goods ADD COLUMN png_filename text"
+    def alter_table(self, column_name):
+        sql = f"ALTER TABLE goods ADD COLUMN {column_name} text"
         self._connect.cursor().execute(sql)
         self._connect.commit()
 
     def add_description(self):
         for id in self._connect.cursor().execute("SELECT id FROM goods").fetchall():
-            self._connect.cursor().execute(f"UPDATE goods SET png_filename = 'spam.png' WHERE id = {id[0]}")
+            self._connect.cursor().execute(f"UPDATE goods SET photo_id = -1 WHERE id = {id[0]}")
             self._connect.commit()
 
-    def get_png_path(self, id: int) -> 'Path':
-        sql = f'SELECT png_filename FROM goods WHERE id = {id}'
+    def get_png_path(self, id: int) -> Tuple[Path, int]:
+        sql = f'SELECT png_filename, photo_id FROM goods WHERE id = {id}'
         result = self._connect.cursor().execute(sql).fetchone()
-        result = f"{result[0]}"
-        return Path.cwd() / 'resources' / 'png' / result
+        filename = f"{result[0]}"
+        return (Path.cwd() / 'resources' / 'png' / filename), result[1]
 
     def get_description(self, id: int) -> str:
         sql = f'SELECT description FROM goods WHERE id = {id}'
         return self._connect.cursor().execute(sql).fetchone()[0]
 
+    def update_column(self, column: str, value: int, id: int):
+        if isinstance(value, str):
+            value = f"'{value}'"
+        sql = f"UPDATE goods SET {column} = {value} WHERE id = {id}"
+        self._connect.cursor().execute(sql)
+        self._connect.commit()
+
 
 if __name__ == '__main__':
-    db = DatabaseHandler(Path(r'C:\Users\Intel Core i7\PycharmProjects\catalog-bot\catalog.db'))
+    db = DatabaseHandler(Path(r'/Users/arkhipowasilii/PycharmProjects/catalog-bot2/catalog.db'))
     db.add_description()
