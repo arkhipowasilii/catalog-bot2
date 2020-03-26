@@ -32,15 +32,8 @@ class Bot:
         self._dispatcher.add_handler(MessageHandler(Filters.text, self._message_callback))
 
     def _start_callback(self, update: Update, context, *args):
-        photo = self.open_main_photo()
         kb = KB(self._serializer).button("Open", self.open_categories)
-        msg = self.send_message_photo(update,
-                                      context,
-                                      "I'm catalog! Insert your request or open categories!",
-                                      kb,
-                                      photo)
-        main_image_path = msg.photo[-1].file_id
-        photo.close()
+        self.send_message(update,context,"I'm catalog! Insert your request or open categories!",kb,)
 
     def _query_callback(self, update: Update, context):
         callback, args = self._serializer.deserialize(update.callback_query.data)
@@ -102,25 +95,22 @@ class Bot:
 
     def _open_category(self, update: Update, context, offset: int, category_id: int, back_offset: int):
         offset, category_id, back_offset = int(offset), int(category_id), int(back_offset)
-        photo = self.open_main_photo()
         kb = self._get_products_keyboard(self._open_category, self._catalog.get(category_id, offset, IN_PAGE),
                                          offset, back_offset,
                                          len(self._catalog.get(category_id)), True,
                                          category_id, back_offset)
 
-        #self.edit_message(update, context, "Catalog:", kb)
-        self.edit_message_photo(update, context, '', kb, photo)
+        self.edit_message(update, context, "Catalog:", kb)
 
     def open_categories(self, update: Update, context, offset: int):
         if offset is '':
             offset = 0
         else:
             offset = int(offset)
-        photo = self.open_main_photo()
 
         kb = self._abs_open_categories(self._open_category, self._catalog.get_categories(offset=offset, limit=IN_PAGE),
                                        offset, max_offset=len(self._catalog.get_categories()))
-        self.edit_message_photo(update, context, "Catalog:", kb, photo)
+        self.edit_message(update, context, "Catalog:", kb)
 
     def edit_message(self, update: Update, context, text: str, kb: KB):
         context.bot.edit_message_text(chat_id=update.effective_chat.id,

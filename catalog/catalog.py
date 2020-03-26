@@ -71,3 +71,9 @@ class Catalog:
 
     def get_description(self, id: int) -> str:
         return self._db.get_description(id)
+
+    def insert_into_basket(self, user_id: int, good_id: int, count: int):
+        pass
+
+    def get_basket(self, user_id: int, offset: int, limit: int) -> Iterable[Product]:
+        pass

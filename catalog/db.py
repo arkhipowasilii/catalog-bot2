@@ -96,6 +96,12 @@ class DatabaseHandler:
         self._connect.cursor().execute(sql)
         self._connect.commit()
 
+    def insert_into_basket(self, user_id: int, good_id: int, count: int):
+        pass
+
+    def get_basket(self, user_id:int, offset: int, limit: int) -> Iterable[Tuple[int, str, int]]:
+        pass
+
 
 if __name__ == '__main__':
     db = DatabaseHandler(Path(r'/Users/arkhipowasilii/PycharmProjects/catalog-bot2/catalog.db'))
