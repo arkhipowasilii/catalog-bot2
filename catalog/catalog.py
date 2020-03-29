@@ -73,7 +73,11 @@ class Catalog:
         return self._db.get_description(id)
 
     def insert_into_basket(self, user_id: int, good_id: int, count: int):
-        pass
+        self._db.insert_into_basket(user_id, good_id, count)
 
     def get_basket(self, user_id: int, offset: int, limit: int) -> Iterable[Product]:
-        pass
+        count, buttons = self._db.get_basket(user_id, offset, limit)
+        return count, buttons[0]
+
+    def delete_product_from_basket(self, user_id: int, good_id: int):
+        self._db.delete_product_from_basket(user_id, good_id)

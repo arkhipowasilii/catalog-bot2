@@ -97,11 +97,34 @@ class DatabaseHandler:
         self._connect.commit()
 
     def insert_into_basket(self, user_id: int, good_id: int, count: int):
-        pass
+        sql1 = (f"SELECT EXISTS(SELECT 1 FROM basket "
+                f"WHERE user_id = {user_id} AND good_id = {good_id})")
+        if self._connect.cursor().execute(sql1).fetchone()[0]:
+            sql2 = f"SELECT count from basket" \
+                f" WHERE user_id = {user_id} AND good_id = {good_id}"
+            current_count = self._connect.cursor().execute(sql2).fetchone()[0]
+            sql3 = f"UPDATE basket SET count = {current_count + count}" \
+                f" WHERE user_id = {user_id} AND good_id = {good_id}"
+        else:
+            sql3 = f"INSERT INTO basket VALUES({user_id}, {good_id}, {count})"
+        self._connect.cursor().execute(sql3)
+        self._connect.commit()
 
-    def get_basket(self, user_id:int, offset: int, limit: int) -> Iterable[Tuple[int, str, int]]:
-        pass
+    def get_basket(self, user_id: int, offset: int, limit: int) -> Union[int, Iterable[Tuple[int, str, str, int]]]:
+        sql1 = f"SELECT gd.id, gd.name, gd.photo_id, ba.count FROM basket as ba "\
+            f"LEFT JOIN goods as gd ON ba.good_id = gd.id " \
+            f"WHERE ba.user_id = {user_id} " \
+            f"ORDER BY gd.name " \
+            f"LIMIT {limit} OFFSET {offset}"
 
+        sql2 = f"SELECT count(*) FROM basket " \
+            f"WHERE user_id = {user_id}"
+        return self._connect.cursor().execute(sql2).fetchone()[0], self._connect.cursor().execute(sql1).fetchall()
+
+    def delete_product_from_basket(self, user_id: int, good_id: int):
+        sql = f"DELETE FROM basket WHERE user_id = {user_id} AND good_id = {good_id}"
+        self._connect.cursor().execute(sql)
+        self._connect.commit()
 
 if __name__ == '__main__':
     db = DatabaseHandler(Path(r'/Users/arkhipowasilii/PycharmProjects/catalog-bot2/catalog.db'))

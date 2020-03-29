@@ -33,7 +33,7 @@ class Bot:
 
     def _start_callback(self, update: Update, context, *args):
         kb = KB(self._serializer).button("Open", self.open_categories)
-        self.send_message(update,context,"I'm catalog! Insert your request or open categories!",kb,)
+        self.send_message(update, context, "I'm catalog! Insert your request or open categories!", kb)
 
     def _query_callback(self, update: Update, context):
         callback, args = self._serializer.deserialize(update.callback_query.data)
@@ -74,24 +74,52 @@ class Bot:
 
         self.edit_message(update, context, "Products:", kb)
 
-    #ToDO
-    def _open_product(self, update: Update, context, product_id: int, back_offset: int):
+    def open_product(self, update: Update, context, product_id: int, back_offset: int):
         product_id, back_offset = int(product_id), int(back_offset)
         image_path = self._catalog.get_png_path(product_id)
         desciption = self._catalog.get_description(product_id)
-        if isinstance(image_path, Path):
-            fp = image_path.open('rb')
 
-            msg = context.bot.send_photo(chat_id=update.effective_chat.id, photo=fp, caption=desciption)
+        kb = KB(self._serializer)
+        kb.button("add to basket", self.add_to_basket, [product_id])
+        if isinstance(image_path, Path):
+            photo = image_path.open('rb')
+
+            msg = self.send_message_photo(update=update, context=context, photo=photo, kb=kb, caption=desciption)
             photo_id = msg.photo[-1].file_id
             self._catalog.update_photo_id(photo_id, product_id)
 
-            fp.close()
+            photo.close()
 
         elif isinstance(image_path, str):
-            context.bot.send_photo(chat_id=update.effective_chat.id,
-                                     caption="Products:",
-                                     photo=image_path)
+            self.send_message_photo(update=update, context=context, caption=desciption, kb=kb, photo=image_path)
+
+    def add_to_basket(self, update, context, product_id: int):
+        self._catalog.insert_into_basket(update._effective_user.id, product_id, 1)
+        if len(update._effective_message.reply_markup['inline_keyboard']) == 1:
+            kb = KB(self._serializer)
+            kb.button("add to cart", self.add_to_basket, [product_id]).line().button("go to cart", self.get_basket)
+            self.edit_message_reply_markup(update, context, kb)
+
+    def get_basket(self, update: Update, context, *args):
+        max_offset, product_data = self._catalog.get_basket(update._effective_user.id, 0, 1)
+        kb = KB(self._serializer)
+        kb.button("delete", self.delete_products_from_cart, (0,)).\
+            pager(callback=self.get_basket2, in_page=1, current_offset=0, max_offset=max_offset)
+        self.send_message_photo(update=update, context=context, photo=product_data[2], caption=product_data[1], kb=kb)
+
+    def get_basket2(self, update, context, offset: int, ):
+        offset = int(offset)
+        max_offset, product_data = self._catalog.get_basket(update._effective_user.id, 0, 1)
+        kb = KB(self._serializer)
+        kb.button("delete", self.delete_products_from_cart, (offset,)). \
+            pager(callback=self.get_basket2, in_page=1, current_offset=offset, max_offset=max_offset)
+
+        self.edit_message_photo(update=update, context=context, photo=product_data[2])
+        self.edit_message_reply_markup(update=update, context=context, kb=kb)
+
+    def delete_products_from_cart(self, update, context, offset: int,  product_id):
+        self._catalog.delete_product_from_basket(update._effective_user.id, product_id)
+        self.get_basket2(update, context, offset-1)
 
     def _open_category(self, update: Update, context, offset: int, category_id: int, back_offset: int):
         offset, category_id, back_offset = int(offset), int(category_id), int(back_offset)
@@ -129,11 +157,15 @@ class Bot:
                                       caption=caption,
                                       reply_markup=kb.get())
 
-    def edit_message_photo(self, update: Update, context, caption: str, kb: KB = None, photo: Union[Path, str] = None):
+    def edit_message_photo(self, update: Update, context, photo: Union[Path, str]):
         context.bot.edit_message_media(chat_id=update.effective_chat.id,
-                                       message_id=update.effective_message.message_id,
-                                       reply_markup=kb.get(),
-                                       media=photo)
+                                       media=photo,
+                                       message_id=update.effective_message.message_id)
+
+    def edit_message_reply_markup(self, update: Update, context, kb: KB):
+        return context.bot.edit_message_reply_markup(chat_id=update.effective_chat.id,
+                                                     message_id=update.effective_message.message_id,
+                                                     reply_markup=kb.get())
 
     def _abs_open_categories(self, func: Callable, categories: Iterable, offset: int, max_offset: int) -> KB:
         kb = KB(self._serializer)
@@ -156,7 +188,7 @@ class Bot:
         for index, product in enumerate(products):
             if index >= IN_PAGE:
                 break
-            kb.button(product.name, self._open_product, (product.id, back_offset))
+            kb.button(product.name, self.open_product, (product.id, back_offset))
 
         if is_need_back:
             pager = kb.pager(func, IN_PAGE, offset, max_offset, back_offset, *args)
