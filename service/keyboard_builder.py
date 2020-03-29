@@ -61,8 +61,10 @@ class KeyboardBuilder:
             self._buttons = self._buttons[:-1]
         return Markup(self._buttons)
 
+
 from telegram import ReplyKeyboardMarkup as MenuMarkup
 from telegram import KeyboardButton as MenuButton
+
 
 class MenuBuilder:
     def __init__(self, serializer):

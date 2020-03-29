@@ -97,17 +97,24 @@ class DatabaseHandler:
         self._connect.commit()
 
     def insert_into_basket(self, user_id: int, good_id: int, count: int):
-        sql1 = (f"SELECT EXISTS(SELECT 1 FROM basket "
+        sql_is_exist_good = (f"SELECT EXISTS(SELECT 1 FROM basket "
                 f"WHERE user_id = {user_id} AND good_id = {good_id})")
-        if self._connect.cursor().execute(sql1).fetchone()[0]:
-            sql2 = f"SELECT count from basket" \
+        if self._connect.cursor().execute(sql_is_exist_good).fetchone()[0]:
+            sql_count = f"SELECT count from basket" \
                 f" WHERE user_id = {user_id} AND good_id = {good_id}"
-            current_count = self._connect.cursor().execute(sql2).fetchone()[0]
-            sql3 = f"UPDATE basket SET count = {current_count + count}" \
+            current_count = self._connect.cursor().execute(sql_count).fetchone()[0]
+            sql_update = f"UPDATE basket SET count = {current_count + count}" \
                 f" WHERE user_id = {user_id} AND good_id = {good_id}"
         else:
-            sql3 = f"INSERT INTO basket VALUES({user_id}, {good_id}, {count})"
-        self._connect.cursor().execute(sql3)
+            sql_update = f"INSERT INTO basket VALUES({user_id}, {good_id}, {count})"
+        self._connect.cursor().execute(sql_update)
+        self._connect.commit()
+
+    def insert_into_basket_version2(self, user_id: int, good_id: int, count: int):
+        sql = f"INSERT INTO basket VALUES({user_id}, {good_id}, {count}) " \
+            f"ON CONFLICT(user_id and good_id) " \
+            f"DO UPDATE SET count+=1"
+        self._connect.cursor().execute(sql)
         self._connect.commit()
 
     def get_basket(self, user_id: int, offset: int, limit: int) -> Union[int, Iterable[Tuple[int, str, str, int]]]:

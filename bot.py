@@ -1,7 +1,7 @@
 from telegram import Update
 from typing import List, Tuple, Dict, Iterable, Callable, Union, Any
 from catalog import Catalog, Product
-from service.keyboard_builder import KeyboardBuilder as KB, Serializer
+from service.keyboard_builder import KeyboardBuilder as KB, Serializer, MenuBuilder
 from telegram.ext import Updater, Dispatcher, CommandHandler, CallbackQueryHandler, MessageHandler, Filters
 from telegram import InlineQueryResultCachedPhoto
 from PIL import Image
@@ -97,29 +97,29 @@ class Bot:
         self._catalog.insert_into_basket(update._effective_user.id, product_id, 1)
         if len(update._effective_message.reply_markup['inline_keyboard']) == 1:
             kb = KB(self._serializer)
-            kb.button("add to cart", self.add_to_basket, [product_id]).line().button("go to cart", self.get_basket)
+            kb.button("add to cart", self.add_to_basket, [product_id]).line().button("go to cart", self.get_basket_start)
             self.edit_message_reply_markup(update, context, kb)
 
-    def get_basket(self, update: Update, context, *args):
+    def get_basket_start(self, update: Update, context, *args):
         max_offset, product_data = self._catalog.get_basket(update._effective_user.id, 0, 1)
         kb = KB(self._serializer)
         kb.button("delete", self.delete_products_from_cart, (0,)).\
-            pager(callback=self.get_basket2, in_page=1, current_offset=0, max_offset=max_offset)
+            pager(callback=self.get_basket, in_page=1, current_offset=0, max_offset=max_offset)
         self.send_message_photo(update=update, context=context, photo=product_data[2], caption=product_data[1], kb=kb)
 
-    def get_basket2(self, update, context, offset: int, ):
+    def get_basket(self, update, context, offset: int):
         offset = int(offset)
         max_offset, product_data = self._catalog.get_basket(update._effective_user.id, 0, 1)
         kb = KB(self._serializer)
         kb.button("delete", self.delete_products_from_cart, (offset,)). \
-            pager(callback=self.get_basket2, in_page=1, current_offset=offset, max_offset=max_offset)
+            pager(callback=self.get_basket, in_page=1, current_offset=offset, max_offset=max_offset)
 
         self.edit_message_photo(update=update, context=context, photo=product_data[2])
         self.edit_message_reply_markup(update=update, context=context, kb=kb)
 
     def delete_products_from_cart(self, update, context, offset: int,  product_id):
         self._catalog.delete_product_from_basket(update._effective_user.id, product_id)
-        self.get_basket2(update, context, offset-1)
+        self.get_basket(update, context, offset - 1)
 
     def _open_category(self, update: Update, context, offset: int, category_id: int, back_offset: int):
         offset, category_id, back_offset = int(offset), int(category_id), int(back_offset)
