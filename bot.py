@@ -4,6 +4,7 @@ from catalog import Catalog, Product
 from service.keyboard_builder import KeyboardBuilder as KB, Serializer, MenuBuilder
 from telegram.ext import Updater, Dispatcher, CommandHandler, CallbackQueryHandler, MessageHandler, Filters
 from telegram import InlineQueryResultCachedPhoto
+from telegram.files.inputmedia import InputMediaPhoto
 from PIL import Image
 from pathlib import Path
 from time import sleep
@@ -33,6 +34,9 @@ class Bot:
 
     def _start_callback(self, update: Update, context, *args):
         kb = KB(self._serializer).button("Open", self.open_categories)
+        menu = MenuBuilder(self._serializer)
+        menu.button(text="cart", callback=self.get_basket_start)
+        #self.send_message_photo(update, context, "hi", menu)
         self.send_message(update, context, "I'm catalog! Insert your request or open categories!", kb)
 
     def _query_callback(self, update: Update, context):
@@ -94,6 +98,7 @@ class Bot:
             self.send_message_photo(update=update, context=context, caption=desciption, kb=kb, photo=image_path)
 
     def add_to_basket(self, update, context, product_id: int):
+        product_id = int(product_id)
         self._catalog.insert_into_basket(update._effective_user.id, product_id, 1)
         if len(update._effective_message.reply_markup['inline_keyboard']) == 1:
             kb = KB(self._serializer)
@@ -113,8 +118,7 @@ class Bot:
         kb = KB(self._serializer)
         kb.button("delete", self.delete_products_from_cart, (offset,)). \
             pager(callback=self.get_basket, in_page=1, current_offset=offset, max_offset=max_offset)
-
-        self.edit_message_photo(update=update, context=context, photo=product_data[2])
+        self.edit_message_photo(update=update, context=context, photo=InputMediaPhoto(media=product_data[2]))
         self.edit_message_reply_markup(update=update, context=context, kb=kb)
 
     def delete_products_from_cart(self, update, context, offset: int,  product_id):
