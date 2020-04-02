@@ -110,15 +110,21 @@ class Bot:
         kb = KB(self._serializer)
         kb.button("delete", self.delete_products_from_cart, (0,)).\
             pager(callback=self.get_basket, in_page=1, current_offset=0, max_offset=max_offset)
-        self.send_message_photo(update=update, context=context, photo=product_data[2], caption=product_data[1], kb=kb)
+        self.send_message_photo(update=update,
+                                context=context,
+                                photo=product_data[2],
+                                caption=f"Product: {product_data[1]}, quantity: {product_data[0]}",
+                                kb=kb)
 
     def get_basket(self, update, context, offset: int):
         offset = int(offset)
-        max_offset, product_data = self._catalog.get_basket(update._effective_user.id, 0, 1)
+        max_offset, product_data = self._catalog.get_basket(update._effective_user.id, offset, 1)
         kb = KB(self._serializer)
         kb.button("delete", self.delete_products_from_cart, (offset,)). \
             pager(callback=self.get_basket, in_page=1, current_offset=offset, max_offset=max_offset)
-        self.edit_message_photo(update=update, context=context, photo=InputMediaPhoto(media=product_data[2]))
+        input_media_photo = InputMediaPhoto(media=product_data[2],
+                                            caption=f"Product: {product_data[1]}, quantity: {product_data[0]}")
+        self.edit_message_photo(update=update, context=context, photo=input_media_photo)
         self.edit_message_reply_markup(update=update, context=context, kb=kb)
 
     def delete_products_from_cart(self, update, context, offset: int,  product_id):
@@ -161,7 +167,7 @@ class Bot:
                                       caption=caption,
                                       reply_markup=kb.get())
 
-    def edit_message_photo(self, update: Update, context, photo: Union[Path, str]):
+    def edit_message_photo(self, update: Update, context, photo: InputMediaPhoto):
         context.bot.edit_message_media(chat_id=update.effective_chat.id,
                                        media=photo,
                                        message_id=update.effective_message.message_id)
