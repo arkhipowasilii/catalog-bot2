@@ -37,7 +37,7 @@ class Bot:
         menu = MenuBuilder(self._serializer)
         menu.button(text="cart", callback=self.get_basket_start)
         #self.send_message_photo(update, context, "hi", menu)
-        self.send_message(update, context, "I'm catalog! Insert your request or open categories!", kb)
+        self.send_message(update, context, "I'm catalog! Insert your request or open categories!:", kb)
 
     def _query_callback(self, update: Update, context):
         callback, args = self._serializer.deserialize(update.callback_query.data)
