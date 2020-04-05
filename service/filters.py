@@ -6,14 +6,16 @@ class MessageFilters(object):
         name = 'MessageFilters.FindFilter'
 
         def filter(self, message):
-            return bool(message.text and not message.text.startswith('/'))
+            return bool(message.text
+                        and not message.text.startswith('/')
+                        and message.text != "cart"
+                        and message.text != "home")
 
-    text = _FindFilter()
+    find_filter = _FindFilter()
 
     class _MenuFilter(BaseFilter):
         name = 'MessageFilters.add'
 
         def filter(self, message):
-            return bool(message.text and message.text.startswith('$add'))
-
-    add = _MenuFilter()
+            return bool(message.text and (message.text == "cart" or message.text == "home"))
+    menu_filter = _MenuFilter()

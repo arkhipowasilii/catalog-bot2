@@ -7,8 +7,7 @@ from telegram import InlineQueryResultCachedPhoto
 from telegram.files.inputmedia import InputMediaPhoto
 from PIL import Image
 from pathlib import Path
-from time import sleep
-
+from service.filters import MessageFilters
 IN_PAGE = 2
 main_image_path = Path(r"/Users/arkhipowasilii/PycharmProjects/catalog-bot2/resources/png/-1.png")
 
@@ -30,14 +29,15 @@ class Bot:
     def _connect(self):
         self._dispatcher.add_handler(CommandHandler('start', self._start_callback))
         self._dispatcher.add_handler(CallbackQueryHandler(self._query_callback))
-        self._dispatcher.add_handler(MessageHandler(Filters.text, self._message_callback))
+        self._dispatcher.add_handler(MessageHandler(MessageFilters.find_filter, self._find_callback))
+        self._dispatcher.add_handler(MessageHandler(MessageFilters.menu_filter, self._menu_callback))
 
     def _start_callback(self, update: Update, context, *args):
         kb = KB(self._serializer).button("Open", self.open_categories)
         menu = MenuBuilder(self._serializer)
-        menu.button(text="cart", callback=self.get_basket_start)
-        #self.send_message_photo(update, context, "hi", menu)
-        self.send_message(update, context, "I'm catalog! Insert your request or open categories!:", kb)
+        menu.button(text="cart", callback=self.get_basket_start).button(text="home", callback=self._start_callback)
+        self.send_message(update, context, "Hi!", menu)
+        self.send_message(update, context, "I'm catalog. Insert your request or open categories!:", kb)
 
     def _query_callback(self, update: Update, context):
         callback, args = self._serializer.deserialize(update.callback_query.data)
@@ -46,8 +46,14 @@ class Bot:
         else:
             raise NotImplementedError(f"{update.callback_query.data}")
 
-    #ToDO
-    def _message_callback(self, update: Update, context):
+    def _menu_callback(self, update: Update, context):
+        messsage_text = update.effective_message.text
+        if messsage_text == "cart":
+            self.get_basket_start(update, context)
+        elif messsage_text == "home":
+            self._start_callback(update, context)
+
+    def _find_callback(self, update: Update, context):
         request = update.message.text
         all_products_count, result = self._catalog.find(update.message.text, 0, IN_PAGE)
         all_products = []
