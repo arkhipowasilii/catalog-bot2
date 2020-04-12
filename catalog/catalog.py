@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Iterable, Optional, Union
+from typing import Iterable, Optional, Union, Tuple
 from pathlib import Path
 
 from .db import DatabaseHandler
@@ -72,12 +72,12 @@ class Catalog:
     def get_description(self, id: int) -> str:
         return self._db.get_description(id)
 
-    def insert_into_basket(self, user_id: int, good_id: int, count: int):
-        self._db.insert_into_basket(user_id, good_id, count)
+    def insert_into_cart(self, user_id: int, good_id: int, count: int):
+        self._db.insert_into_cart(user_id, good_id, count)
 
-    def get_product_from_basket(self, user_id: int, offset: int, limit: int) -> Iterable[Product]:
-        count, buttons = self._db.get_basket(user_id, offset, limit)
+    def get_product_from_cart(self, user_id: int, offset: int, limit: int) -> Iterable[Union[int, Tuple]]:
+        count, buttons = self._db.get_cart(user_id, offset, limit)
         return count, buttons[0]
 
-    def delete_product_from_basket(self, user_id: int, good_id: int):
-        self._db.delete_product_from_basket(user_id, good_id)
+    def delete_product_from_cart(self, user_id: int, good_id: int):
+        self._db.delete_product_cart(user_id, good_id)

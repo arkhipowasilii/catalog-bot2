@@ -35,7 +35,7 @@ class Bot:
     def _start_callback(self, update: Update, context, *args):
         kb = KB(self._serializer).button("Open", self.open_categories)
         menu = MenuBuilder(self._serializer)
-        menu.button(text="cart", callback=self.get_basket_start).button(text="home", callback=self._start_callback)
+        menu.button(text="cart", callback=self.get_cart_start).button(text="home", callback=self._start_callback)
         self.send_message(update, context, "Hi!", menu)
         self.send_message(update, context, "I'm catalog. Insert your request or open categories!:", kb)
 
@@ -49,7 +49,7 @@ class Bot:
     def _menu_callback(self, update: Update, context):
         messsage_text = update.effective_message.text
         if messsage_text == "cart":
-            self.get_basket_start(update, context)
+            self.get_cart_start(update, context)
         elif messsage_text == "home":
             self._start_callback(update, context)
 
@@ -90,7 +90,7 @@ class Bot:
         desciption = self._catalog.get_description(product_id)
 
         kb = KB(self._serializer)
-        kb.button("add to basket", self.add_to_basket, [product_id])
+        kb.button("add to cart", self.add_to_cart, [product_id])
         if isinstance(image_path, Path):
             photo = image_path.open('rb')
 
@@ -103,40 +103,41 @@ class Bot:
         elif isinstance(image_path, str):
             self.send_message_photo(update=update, context=context, caption=desciption, kb=kb, photo=image_path)
 
-    def add_to_basket(self, update, context, product_id: int):
+    def add_to_cart(self, update, context, product_id: int):
         product_id = int(product_id)
-        self._catalog.insert_into_basket(update._effective_user.id, product_id, 1)
+        self._catalog.insert_into_cart(update._effective_user.id, product_id, 1)
         if len(update._effective_message.reply_markup['inline_keyboard']) == 1:
             kb = KB(self._serializer)
-            kb.button("add to cart", self.add_to_basket, [product_id]).line().button("go to cart", self.get_basket_start)
+            kb.button("add to cart", self.add_to_cart, [product_id]).line().button("go to cart", self.get_cart_start)
             self.edit_message_reply_markup(update, context, kb)
 
-    def get_basket_start(self, update: Update, context, *args):
-        max_offset, product_data = self._catalog.get_product_from_basket(update._effective_user.id, 0, 1)
+    def get_cart_start(self, update: Update, context, *args):
+        max_offset, product_data = self._catalog.get_product_from_cart(update._effective_user.id, 0, 1)
         kb = KB(self._serializer)
-        kb.button("delete", self.delete_products_from_cart, (0,)).\
-            pager(callback=self.get_basket, in_page=1, current_offset=0, max_offset=max_offset)
+        kb.button("delete", self.delete_products_from_cart, (0, product_data[0])).\
+            pager(callback=self.get_cart, in_page=1, current_offset=0, max_offset=max_offset)
         self.send_message_photo(update=update,
                                 context=context,
                                 photo=product_data[2],
                                 caption=f"Product: {product_data[1]}, quantity: {product_data[0]}",
                                 kb=kb)
 
-    def get_basket(self, update, context, offset: int):
+    def get_cart(self, update, context, offset: int):
         offset = int(offset)
-        max_offset, product_data = self._catalog.get_product_from_basket(update._effective_user.id, offset, 1)
+        max_offset, product_data = self._catalog.get_product_from_cart(update._effective_user.id, offset, 1)
 
         kb = KB(self._serializer)
-        kb.button("delete", self.delete_products_from_cart, (offset,)). \
-            pager(callback=self.get_basket, in_page=1, current_offset=offset, max_offset=max_offset)
+        kb.button("delete", self.delete_products_from_cart, (offset, product_data[0])). \
+            pager(callback=self.get_cart, in_page=1, current_offset=offset, max_offset=max_offset)
         input_media_photo = InputMediaPhoto(media=product_data[2],
                                             caption=f"Product: {product_data[1]}, quantity: {product_data[0]}")
         self.edit_message_photo(update=update, context=context, photo=input_media_photo)
         self.edit_message_reply_markup(update=update, context=context, kb=kb)
 
     def delete_products_from_cart(self, update, context, offset: int,  product_id):
-        self._catalog.delete_product_from_basket(update._effective_user.id, product_id)
-        self.get_basket(update, context, offset - 1)
+        offset, product_id = int(offset), int(product_id)
+        self._catalog.delete_product_from_cart(update._effective_user.id, product_id)
+        self.get_cart(update, context, offset - 1)
 
     def _open_category(self, update: Update, context, offset: int, category_id: int, back_offset: int):
         offset, category_id, back_offset = int(offset), int(category_id), int(back_offset)
