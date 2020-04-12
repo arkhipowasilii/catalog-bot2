@@ -123,6 +123,15 @@ class DatabaseHandler:
         self._connect.cursor().execute(sql)
         self._connect.commit()
 
+    def change_quantity(self, user_id: int, good_id: int, is_append: bool):
+        sql_update = f"UPDATE basket SET count = count {'+ 1' if is_append else '- 1'} " \
+            f"WHERE user_id = {user_id} AND good_id = {good_id}"
+        sql_delete = f"DELETE FROM basket WHERE count = 0"
+        cursor = self._connect.cursor()
+        cursor.execute(sql_update)
+        cursor.execute(sql_delete)
+        self._connect.commit()
+
 
 if __name__ == '__main__':
     db = DatabaseHandler(Path(r'/Users/arkhipowasilii/PycharmProjects/catalog-bot2/catalog.db'))

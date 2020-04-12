@@ -65,7 +65,6 @@ class KeyboardBuilder:
 from telegram import ReplyKeyboardMarkup as MenuMarkup
 from telegram import KeyboardButton as MenuButton
 
-
 class MenuBuilder:
     def __init__(self, serializer):
         self._serializer = serializer
@@ -75,6 +74,10 @@ class MenuBuilder:
     def button(self, text: str, callback: Callable, data: Iterable[Any] = None) -> 'MenuBuilder':
         data = self._serializer.serialize(callback, data or [])
         self._buttons[-1].append(MenuButton(text=text, callback_data=data))
+        return self
+
+    def line(self) -> 'KeyboardBuilder':
+        self._buttons.append([])
         return self
 
     def get(self) -> MenuMarkup:

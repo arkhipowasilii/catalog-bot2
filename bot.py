@@ -112,7 +112,7 @@ class Bot:
             self.edit_message_reply_markup(update, context, kb)
 
     def get_basket_start(self, update: Update, context, *args):
-        max_offset, product_data = self._catalog.get_basket(update._effective_user.id, 0, 1)
+        max_offset, product_data = self._catalog.get_product_from_basket(update._effective_user.id, 0, 1)
         kb = KB(self._serializer)
         kb.button("delete", self.delete_products_from_cart, (0,)).\
             pager(callback=self.get_basket, in_page=1, current_offset=0, max_offset=max_offset)
@@ -124,7 +124,8 @@ class Bot:
 
     def get_basket(self, update, context, offset: int):
         offset = int(offset)
-        max_offset, product_data = self._catalog.get_basket(update._effective_user.id, offset, 1)
+        max_offset, product_data = self._catalog.get_product_from_basket(update._effective_user.id, offset, 1)
+
         kb = KB(self._serializer)
         kb.button("delete", self.delete_products_from_cart, (offset,)). \
             pager(callback=self.get_basket, in_page=1, current_offset=offset, max_offset=max_offset)
