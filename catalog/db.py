@@ -140,3 +140,8 @@ class DatabaseHandler:
         cursor.execute(sql_update)
         cursor.execute(sql_delete)
         self._connect.commit()
+
+    def add_order(self, user_id: int, phone_number: int):
+        sql = f"INSERT INTO orders (user_id, phone_number) VALUES ({user_id}, {phone_number})"
+        self._connect.cursor().execute(sql)
+        self._connect.commit()

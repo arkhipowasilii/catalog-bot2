@@ -27,10 +27,10 @@ class Catalog:
     def get_categories(self, offset: Optional[int] = None, limit: Optional[int] = None) -> Iterable[Category]:
         return [Category(id, name) for id, name in self._db.get_categories(offset=offset, limit=limit)]
 
-    def get(self,
-            category: Union[Category, int, None] = None,
-            offset: Optional[int] = None,
-            limit: Optional[int] = None) -> Iterable[Product]:
+    def get_products(self,
+                     category: Union[Category, int, None] = None,
+                     offset: Optional[int] = None,
+                     limit: Optional[int] = None) -> Iterable[Product]:
 
         if isinstance(category, Category):
             category = category.id
@@ -81,3 +81,6 @@ class Catalog:
 
     def delete_product_from_cart(self, user_id: int, good_id: int):
         self._db.delete_product_cart(user_id, good_id)
+
+    def add_order(self, user_id: int, phone_number: int):
+        self._db.add_order(user_id, phone_number)

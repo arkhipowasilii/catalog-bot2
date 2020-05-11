@@ -1,11 +1,9 @@
 from telegram import Update
 from typing import List, Tuple, Dict, Iterable, Callable, Union, Any
-from catalog import Catalog, Product
+from catalog import Catalog, Product, Category
 from service.keyboard_builder import KeyboardBuilder as KB, Serializer, MenuBuilder
 from telegram.ext import Updater, Dispatcher, CommandHandler, CallbackQueryHandler, MessageHandler, Filters
-from telegram import InlineQueryResultCachedPhoto
 from telegram.files.inputmedia import InputMediaPhoto
-from PIL import Image
 from pathlib import Path
 from service.filters import MessageFilters
 IN_PAGE = 2
@@ -31,11 +29,13 @@ class Bot:
         self._dispatcher.add_handler(CallbackQueryHandler(self._query_callback))
         self._dispatcher.add_handler(MessageHandler(MessageFilters.find_filter, self._find_callback))
         self._dispatcher.add_handler(MessageHandler(MessageFilters.menu_filter, self._menu_callback))
+        self._dispatcher.add_handler(MessageHandler(MessageFilters.phone_filter, self.receive_phone))
 
     def _start_callback(self, update: Update, context, *args):
         kb = KB(self._serializer).button("Open", self.open_categories)
         menu = MenuBuilder(self._serializer)
-        menu.button(text="cart", callback=self.get_cart_start).button(text="home", callback=self._start_callback)
+        menu.button(text="cart", callback=self.get_cart_start).\
+            button(text="home", callback=self._start_callback).button(text="checkout", callback=self.checkout)
         self.send_message(update, context, "Hi!", menu)
         self.send_message(update, context, "I'm catalog. Insert your request or open categories!:", kb)
 
@@ -52,6 +52,17 @@ class Bot:
             self.get_cart_start(update, context)
         elif messsage_text == "home":
             self._start_callback(update, context)
+        elif messsage_text == "checkout":
+            self.checkout(update, context)
+
+    def checkout(self, update: Update, context):
+        self.send_message(update, context, "To order your goods enter your phone number starting with '+'. "
+                                                 "Example: +79151234567")
+
+    def receive_phone(self, update: Update, context):
+        self._catalog.add_order(update._effective_user.id, update.effective_message.text[1:])
+        self.send_message(update, context, f"Thank you for your order! "
+        f"We will call this number - {update.effective_message.text} to contact you in 20 minutes.")
 
     def _find_callback(self, update: Update, context):
         request = update.message.text
@@ -59,11 +70,13 @@ class Bot:
         all_products = []
         for products in result.values():
             all_products += products
-
-        kb = self._get_products_keyboard(self.open_particular_products,
-                                         all_products,
-                                         0, 0, all_products_count, False, request)
-        self.send_message(update, context, "Products", kb)
+        if all_products_count != 0:
+            kb = self._get_products_keyboard(self.open_particular_products,
+                                             all_products,
+                                             0, 0, all_products_count, False, request)
+            self.send_message(update, context, "Products", kb)
+        else:
+            self.send_message(update, context, "Search is empty")
 
     def open_particular_products(self, update: Update, context,
                                  offset: int, request: str):
@@ -114,12 +127,12 @@ class Bot:
     def get_cart_start(self, update: Update, context, *args):
         max_offset, product_data = self._catalog.get_product_from_cart(update._effective_user.id, 0, 1)
         kb = KB(self._serializer)
-        kb.button("delete", self.delete_products_from_cart, (0, product_data[0])).\
+        kb.button("delete", self.delete_product_from_cart, (0, product_data[0])).\
             pager(callback=self.get_cart, in_page=1, current_offset=0, max_offset=max_offset)
         self.send_message_photo(update=update,
                                 context=context,
                                 photo=product_data[2],
-                                caption=f"Product: {product_data[1]}, quantity: {product_data[0]}",
+                                caption=f"Product: {product_data[1]}, quantity: {product_data[3]}",
                                 kb=kb)
 
     def get_cart(self, update, context, offset: int):
@@ -127,23 +140,23 @@ class Bot:
         max_offset, product_data = self._catalog.get_product_from_cart(update._effective_user.id, offset, 1)
 
         kb = KB(self._serializer)
-        kb.button("delete", self.delete_products_from_cart, (offset, product_data[0])). \
+        kb.button("delete", self.delete_product_from_cart, (offset, product_data[0])). \
             pager(callback=self.get_cart, in_page=1, current_offset=offset, max_offset=max_offset)
         input_media_photo = InputMediaPhoto(media=product_data[2],
-                                            caption=f"Product: {product_data[1]}, quantity: {product_data[0]}")
+                                            caption=f"Product: {product_data[1]}, quantity: {product_data[3]}")
         self.edit_message_photo(update=update, context=context, photo=input_media_photo)
         self.edit_message_reply_markup(update=update, context=context, kb=kb)
 
-    def delete_products_from_cart(self, update, context, offset: int,  product_id):
+    def delete_product_from_cart(self, update, context, offset: int, product_id):
         offset, product_id = int(offset), int(product_id)
         self._catalog.delete_product_from_cart(update._effective_user.id, product_id)
         self.get_cart(update, context, offset - 1)
 
     def _open_category(self, update: Update, context, offset: int, category_id: int, back_offset: int):
         offset, category_id, back_offset = int(offset), int(category_id), int(back_offset)
-        kb = self._get_products_keyboard(self._open_category, self._catalog.get(category_id, offset, IN_PAGE),
+        kb = self._get_products_keyboard(self._open_category, self._catalog.get_products(category_id, offset, IN_PAGE),
                                          offset, back_offset,
-                                         len(self._catalog.get(category_id)), True,
+                                         len(self._catalog.get_products(category_id)), True,
                                          category_id, back_offset)
 
         self.edit_message(update, context, "Catalog:", kb)
@@ -165,9 +178,13 @@ class Bot:
                                       reply_markup=kb.get())
 
     def send_message(self, update: Update, context, text: str, kb: KB = None):
-        return context.bot.send_message(chat_id=update.effective_chat.id,
+        if kb is not None:
+            return context.bot.send_message(chat_id=update.effective_chat.id,
                                         text=text,
                                         reply_markup=kb.get())
+        else:
+            return context.bot.send_message(chat_id=update.effective_chat.id,
+                                            text=text)
 
     def send_message_photo(self, update: Update, context, caption: str, kb: KB = None, photo: Union[Path, str] = None):
         return context.bot.send_photo(chat_id=update.effective_chat.id,
@@ -185,7 +202,7 @@ class Bot:
                                                      message_id=update.effective_message.message_id,
                                                      reply_markup=kb.get())
 
-    def _abs_open_categories(self, func: Callable, categories: Iterable, offset: int, max_offset: int) -> KB:
+    def _abs_open_categories(self, func: Callable, categories: Iterable[Category], offset: int, max_offset: int) -> KB:
         kb = KB(self._serializer)
         for category in categories:
             kb.button(category.name, func, (0, category.id, offset))
@@ -199,8 +216,9 @@ class Bot:
                                back_offset: int,
                                max_offset: int,
                                is_need_back: bool = None,
-                               *args):
-        is_need_back = True if is_need_back is None else False
+                               *args) -> KB:
+        if is_need_back is None:
+            is_need_back = True
         kb = KB(self._serializer)
 
         for index, product in enumerate(products):
