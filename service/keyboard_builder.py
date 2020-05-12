@@ -60,3 +60,27 @@ class KeyboardBuilder:
         if len(self._buttons[-1]) == 0:
             self._buttons = self._buttons[:-1]
         return Markup(self._buttons)
+
+
+from telegram import ReplyKeyboardMarkup as MenuMarkup
+from telegram import KeyboardButton as MenuButton
+
+class MenuBuilder:
+    def __init__(self, serializer):
+        self._serializer = serializer
+        self._buttons = []
+        self._buttons.append([])
+
+    def button(self, text: str, callback: Callable, data: Iterable[Any] = None) -> 'MenuBuilder':
+        data = self._serializer.serialize(callback, data or [])
+        self._buttons[-1].append(MenuButton(text=text, callback_data=data))
+        return self
+
+    def line(self) -> 'KeyboardBuilder':
+        self._buttons.append([])
+        return self
+
+    def get(self) -> MenuMarkup:
+        if len(self._buttons[-1]) == 0:
+            self._buttons = self._buttons[:-1]
+        return MenuMarkup(self._buttons)

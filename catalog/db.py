@@ -96,7 +96,52 @@ class DatabaseHandler:
         self._connect.cursor().execute(sql)
         self._connect.commit()
 
+    def insert_into_cart(self, user_id: int, good_id: int, count: int):
+        '''
+        The 'magic sauce' here is using Changes() in the Where clause.
+        Changes() represents the number of rows affected by the last operation,
+        which in this case is the update.
+        :param user_id:
+        :param good_id:
+        :param count:
+        :return:
+        '''
 
-if __name__ == '__main__':
-    db = DatabaseHandler(Path(r'/Users/arkhipowasilii/PycharmProjects/catalog-bot2/catalog.db'))
-    db.add_description()
+        sql_update = f"UPDATE cart SET count = count + {count} WHERE user_id = {user_id} AND good_id = {good_id}"
+        sql_insert = f"INSERT INTO cart (user_id, good_id, count) " \
+            f"SELECT {user_id}, {good_id}, 1 " \
+            f"WHERE (SELECT Changes() = 0)"
+        cursor = self._connect.cursor()
+        cursor.execute(sql_update)
+        cursor.execute(sql_insert)
+        self._connect.commit()
+
+    def get_cart(self, user_id: int, offset: int, limit: int) -> Union[int, Iterable[Tuple[int, str, str, int]]]:
+        sql1 = f"SELECT gd.id, gd.name, gd.photo_id, cart.count FROM cart "\
+            f"LEFT JOIN goods as gd ON cart.good_id = gd.id " \
+            f"WHERE cart.user_id = {user_id} " \
+            f"ORDER BY gd.name " \
+            f"LIMIT {limit} OFFSET {offset}"
+
+        sql2 = f"SELECT count(*) FROM cart " \
+            f"WHERE user_id = {user_id}"
+        return self._connect.cursor().execute(sql2).fetchone()[0], self._connect.cursor().execute(sql1).fetchall()
+
+    def delete_product_cart(self, user_id: int, good_id: int):
+        sql = f"DELETE FROM cart WHERE user_id = {user_id} AND good_id = {good_id}"
+        self._connect.cursor().execute(sql)
+        self._connect.commit()
+
+    def change_quantity(self, user_id: int, good_id: int, is_append: bool):
+        sql_update = f"UPDATE cart SET count = count {'+ 1' if is_append else '- 1'} " \
+            f"WHERE user_id = {user_id} AND good_id = {good_id}"
+        sql_delete = f"DELETE FROM cart WHERE count = 0"
+        cursor = self._connect.cursor()
+        cursor.execute(sql_update)
+        cursor.execute(sql_delete)
+        self._connect.commit()
+
+    def add_order(self, user_id: int, phone_number: int):
+        sql = f"INSERT INTO orders (user_id, phone_number) VALUES ({user_id}, {phone_number})"
+        self._connect.cursor().execute(sql)
+        self._connect.commit()
