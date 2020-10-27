@@ -4,7 +4,7 @@ atomicwrites==1.2.1
 attrs==18.2.0
 certifi==2019.11.28
 cffi==1.14.0
-cryptography==2.8
+cryptography==3.2
 decorator==4.4.2
 future==0.18.2
 language==0.6
