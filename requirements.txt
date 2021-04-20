@@ -11,7 +11,7 @@ language==0.6
 more-itertools==4.3.0
 pip==10.0.1
 pluggy==0.8.0
-py==1.7.0
+py==1.10.0
 pycparser==2.20
 pytest==4.0.2
 python-telegram-bot==12.4.2
